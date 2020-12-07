@@ -69,16 +69,7 @@ func (d *Database) GetPendingPDUs(
 			return fmt.Errorf("SelectQueuePDUs: %w", err)
 		}
 
-		retrieve := make([]int64, 0, len(nids))
-		for _, nid := range nids {
-			if event, ok := d.Cache.GetFederationSenderQueuedPDU(nid); ok {
-				events[&Receipt{nid}] = event
-			} else {
-				retrieve = append(retrieve, nid)
-			}
-		}
-
-		blobs, err := d.FederationSenderQueueJSON.SelectQueueJSON(ctx, txn, retrieve)
+		blobs, err := d.FederationSenderQueueJSON.SelectQueueJSON(ctx, txn, nids)
 		if err != nil {
 			return fmt.Errorf("SelectQueueJSON: %w", err)
 		}
@@ -89,7 +80,6 @@ func (d *Database) GetPendingPDUs(
 				return fmt.Errorf("json.Unmarshal: %w", err)
 			}
 			events[&Receipt{nid}] = &event
-			d.Cache.StoreFederationSenderQueuedPDU(nid, &event)
 		}
 
 		return nil
@@ -127,7 +117,6 @@ func (d *Database) CleanPDUs(
 			}
 			if count == 0 {
 				deleteNIDs = append(deleteNIDs, nid)
-				d.Cache.EvictFederationSenderQueuedPDU(nid)
 			}
 		}
 
