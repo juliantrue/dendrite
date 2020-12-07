@@ -268,12 +268,9 @@ func (b *BaseDendrite) CreateFederationClient() *gomatrixserverlib.FederationCli
 			b.Cfg.FederationSender.DisableTLSValidation, noOpHTTPTransport,
 		)
 	}
-	transport := &http.Transport{
-		DisableKeepAlives: true,
-	}
-	client := gomatrixserverlib.NewFederationClientWithTransportTimeout(
+	client := gomatrixserverlib.NewFederationClientWithTimeout(
 		b.Cfg.Global.ServerName, b.Cfg.Global.KeyID, b.Cfg.Global.PrivateKey,
-		b.Cfg.FederationSender.DisableTLSValidation, time.Minute*5, transport,
+		b.Cfg.FederationSender.DisableTLSValidation, time.Minute*5,
 	)
 	client.SetUserAgent(fmt.Sprintf("Dendrite/%s", internal.VersionString()))
 	return client
