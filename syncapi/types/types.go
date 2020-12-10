@@ -438,19 +438,19 @@ func (r *Response) IsEmpty() bool {
 // JoinResponse represents a /sync response for a room which is under the 'join' or 'peek' key.
 type JoinResponse struct {
 	State struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
-	} `json:"state"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+	} `json:"state,omitempty"`
 	Timeline struct {
-		Events    []gomatrixserverlib.ClientEvent `json:"events"`
-		Limited   bool                            `json:"limited"`
-		PrevBatch string                          `json:"prev_batch"`
-	} `json:"timeline"`
+		Events    []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+		Limited   bool                            `json:"limited,omitempty"`
+		PrevBatch string                          `json:"prev_batch,omitempty"`
+	} `json:"timeline,omitempty"`
 	Ephemeral struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
-	} `json:"ephemeral"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+	} `json:"ephemeral,omitempty"`
 	AccountData struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
-	} `json:"account_data"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+	} `json:"account_data,omitempty"`
 }
 
 // NewJoinResponse creates an empty response with initialised arrays.
@@ -466,8 +466,8 @@ func NewJoinResponse() *JoinResponse {
 // InviteResponse represents a /sync response for a room which is under the 'invite' key.
 type InviteResponse struct {
 	InviteState struct {
-		Events []json.RawMessage `json:"events"`
-	} `json:"invite_state"`
+		Events []json.RawMessage `json:"events,omitempty"`
+	} `json:"invite_state,omitempty"`
 }
 
 // NewInviteResponse creates an empty response with initialised arrays.
@@ -496,13 +496,13 @@ func NewInviteResponse(event *gomatrixserverlib.HeaderedEvent) *InviteResponse {
 // LeaveResponse represents a /sync response for a room which is under the 'leave' key.
 type LeaveResponse struct {
 	State struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
-	} `json:"state"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+	} `json:"state,omitempty"`
 	Timeline struct {
-		Events    []gomatrixserverlib.ClientEvent `json:"events"`
-		Limited   bool                            `json:"limited"`
-		PrevBatch string                          `json:"prev_batch"`
-	} `json:"timeline"`
+		Events    []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
+		Limited   bool                            `json:"limited,omitempty"`
+		PrevBatch string                          `json:"prev_batch,omitempty"`
+	} `json:"timeline,omitempty"`
 }
 
 // NewLeaveResponse creates an empty response with initialised arrays.
