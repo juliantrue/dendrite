@@ -381,25 +381,25 @@ type PrevEventRef struct {
 type Response struct {
 	NextBatch   string `json:"next_batch"`
 	AccountData struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
 	} `json:"account_data,omitempty"`
 	Presence struct {
-		Events []gomatrixserverlib.ClientEvent `json:"events"`
+		Events []gomatrixserverlib.ClientEvent `json:"events,omitempty"`
 	} `json:"presence,omitempty"`
 	Rooms struct {
-		Join   map[string]JoinResponse   `json:"join"`
-		Peek   map[string]JoinResponse   `json:"peek"`
-		Invite map[string]InviteResponse `json:"invite"`
-		Leave  map[string]LeaveResponse  `json:"leave"`
-	} `json:"rooms"`
+		Join   map[string]JoinResponse   `json:"join,omitempty"`
+		Peek   map[string]JoinResponse   `json:"peek,omitempty"`
+		Invite map[string]InviteResponse `json:"invite,omitempty"`
+		Leave  map[string]LeaveResponse  `json:"leave,omitempty"`
+	} `json:"rooms,omitempty"`
 	ToDevice struct {
-		Events []gomatrixserverlib.SendToDeviceEvent `json:"events"`
-	} `json:"to_device"`
+		Events []gomatrixserverlib.SendToDeviceEvent `json:"events,omitempty"`
+	} `json:"to_device,omitempty"`
 	DeviceLists struct {
 		Changed []string `json:"changed,omitempty"`
 		Left    []string `json:"left,omitempty"`
 	} `json:"device_lists,omitempty"`
-	DeviceListsOTKCount map[string]int `json:"device_one_time_keys_count"`
+	DeviceListsOTKCount map[string]int `json:"device_one_time_keys_count,omitempty"`
 }
 
 // NewResponse creates an empty response with initialised maps.
