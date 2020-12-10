@@ -383,7 +383,9 @@ func (rp *RequestPool) appendAccountData(
 
 	if len(dataTypes) == 0 {
 		// TODO: this fixes the sytest but is it the right thing to do?
-		dataTypes[""] = []string{"m.push_rules"}
+		if req.since == nil || req.since.PDUPosition() == 0 {
+			dataTypes[""] = []string{"m.push_rules"}
+		}
 	}
 
 	// Iterate over the rooms
