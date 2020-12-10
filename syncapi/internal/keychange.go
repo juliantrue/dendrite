@@ -49,7 +49,7 @@ func DeviceOTKCounts(ctx context.Context, keyAPI keyapi.KeyInternalAPI, userID, 
 // nolint:gocyclo
 func DeviceListCatchup(
 	ctx context.Context, keyAPI keyapi.KeyInternalAPI, rsAPI roomserverAPI.RoomserverInternalAPI,
-	userID string, res *types.Response, from, to types.StreamingToken,
+	userID string, res *types.Response, from, to types.StreamingToken, nextBatch *types.StreamingToken,
 ) (hasNew bool, err error) {
 
 	// Track users who we didn't track before but now do by virtue of sharing a room with them, or not.
@@ -130,11 +130,10 @@ func DeviceListCatchup(
 		}
 	}
 	// set the new token
-	to.SetLog(DeviceListLogName, &types.LogPosition{
+	nextBatch.SetLog(DeviceListLogName, &types.LogPosition{
 		Partition: queryRes.Partition,
 		Offset:    queryRes.Offset,
 	})
-	res.NextBatch = to.String()
 
 	return hasNew, nil
 }

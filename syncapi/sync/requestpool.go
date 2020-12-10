@@ -219,14 +219,14 @@ func (rp *RequestPool) OnIncomingKeyChangeRequest(req *http.Request, device *use
 	}
 	// work out room joins/leaves
 	res, err := rp.db.IncrementalSync(
-		req.Context(), types.NewResponse(), *device, fromToken, toToken, 10, false,
+		req.Context(), types.NewResponse(), *device, fromToken, toToken, 10, false, &types.StreamingToken{},
 	)
 	if err != nil {
 		util.GetLogger(req.Context()).WithError(err).Error("Failed to IncrementalSync")
 		return jsonerror.InternalServerError()
 	}
 
-	res, err = rp.appendDeviceLists(res, device.UserID, fromToken, toToken)
+	res, err = rp.appendDeviceLists(res, device.UserID, fromToken, toToken, &types.StreamingToken{})
 	if err != nil {
 		util.GetLogger(req.Context()).WithError(err).Error("Failed to appendDeviceLists info")
 		return jsonerror.InternalServerError()
@@ -246,6 +246,12 @@ func (rp *RequestPool) OnIncomingKeyChangeRequest(req *http.Request, device *use
 // nolint:gocyclo
 func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.StreamingToken) (*types.Response, error) {
 	res := types.NewResponse()
+	var nextBatch types.StreamingToken
+	nextBatch = nextBatch.WithUpdates(latestPos)
+	defer func() {
+		res.NextBatch = nextBatch.String()
+		fmt.Println("NEXT BATCH IS", res.NextBatch)
+	}()
 
 	// See if we have any new tasks to do for the send-to-device messaging.
 	events, updates, deletions, err := rp.db.SendToDeviceUpdatesForSync(req.ctx, req.device.UserID, req.device.ID, *req.since)
@@ -255,12 +261,12 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 
 	// TODO: handle ignored users
 	if req.since.PDUPosition() == 0 && req.since.EDUPosition() == 0 {
-		res, err = rp.db.CompleteSync(req.ctx, res, req.device, req.limit)
+		res, err = rp.db.CompleteSync(req.ctx, res, req.device, req.limit, &nextBatch)
 		if err != nil {
 			return res, fmt.Errorf("rp.db.CompleteSync: %w", err)
 		}
 	} else {
-		res, err = rp.db.IncrementalSync(req.ctx, res, req.device, *req.since, latestPos, req.limit, req.wantFullState)
+		res, err = rp.db.IncrementalSync(req.ctx, res, req.device, *req.since, latestPos, req.limit, req.wantFullState, &nextBatch)
 		if err != nil {
 			return res, fmt.Errorf("rp.db.IncrementalSync: %w", err)
 		}
@@ -271,7 +277,7 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 	if err != nil {
 		return res, fmt.Errorf("rp.appendAccountData: %w", err)
 	}
-	res, err = rp.appendDeviceLists(res, req.device.UserID, *req.since, latestPos)
+	res, err = rp.appendDeviceLists(res, req.device.UserID, *req.since, latestPos, &nextBatch)
 	if err != nil {
 		return res, fmt.Errorf("rp.appendDeviceLists: %w", err)
 	}
@@ -294,13 +300,7 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 		// Add the updates into the sync response.
 		for _, event := range events {
 			res.ToDevice.Events = append(res.ToDevice.Events, event.SendToDeviceEvent)
-		}
-
-		// Get the next_batch from the sync response and increase the
-		// EDU counter.
-		if pos, perr := types.NewStreamTokenFromString(res.NextBatch); perr == nil {
-			pos.Positions[1]++
-			res.NextBatch = pos.String()
+			nextBatch.Positions[1]++
 		}
 	}
 
@@ -308,9 +308,9 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 }
 
 func (rp *RequestPool) appendDeviceLists(
-	data *types.Response, userID string, since, to types.StreamingToken,
+	data *types.Response, userID string, since, to types.StreamingToken, nextBatch *types.StreamingToken,
 ) (*types.Response, error) {
-	_, err := internal.DeviceListCatchup(context.Background(), rp.keyAPI, rp.rsAPI, userID, data, since, to)
+	_, err := internal.DeviceListCatchup(context.Background(), rp.keyAPI, rp.rsAPI, userID, data, since, to, nextBatch)
 	if err != nil {
 		return nil, fmt.Errorf("internal.DeviceListCatchup: %w", err)
 	}
@@ -383,7 +383,9 @@ func (rp *RequestPool) appendAccountData(
 
 	if len(dataTypes) == 0 {
 		// TODO: this fixes the sytest but is it the right thing to do?
-		dataTypes[""] = []string{"m.push_rules"}
+		if req.since == nil || req.since.PDUPosition() == 0 {
+			dataTypes[""] = []string{"m.push_rules"}
+		}
 	}
 
 	// Iterate over the rooms

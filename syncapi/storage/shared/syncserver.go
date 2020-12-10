@@ -681,9 +681,10 @@ func (d *Database) IncrementalSync(
 	fromPos, toPos types.StreamingToken,
 	numRecentEventsPerRoom int,
 	wantFullState bool,
+	nextBatch *types.StreamingToken,
 ) (*types.Response, error) {
-	nextBatchPos := fromPos.WithUpdates(toPos)
-	res.NextBatch = nextBatchPos.String()
+	*nextBatch = nextBatch.WithUpdates(toPos)
+	res.NextBatch = nextBatch.String()
 
 	var joinedRoomIDs []string
 	var err error
@@ -749,6 +750,7 @@ func (d *Database) getResponseWithPDUsForCompleteSync(
 	ctx context.Context, res *types.Response,
 	userID string, device userapi.Device,
 	numRecentEventsPerRoom int,
+	nextBatch *types.StreamingToken,
 ) (
 	toPos types.StreamingToken,
 	joinedRoomIDs []string,
@@ -774,8 +776,7 @@ func (d *Database) getResponseWithPDUsForCompleteSync(
 		From: 0,
 		To:   toPos.PDUPosition(),
 	}
-
-	res.NextBatch = toPos.String()
+	*nextBatch = toPos
 
 	// Extract room state and recent events for all rooms the user is joined to.
 	joinedRoomIDs, err = d.CurrentRoomState.SelectRoomIDsWithMembership(ctx, txn, userID, gomatrixserverlib.Join)
@@ -903,9 +904,10 @@ func (d *Database) getJoinResponseForCompleteSync(
 func (d *Database) CompleteSync(
 	ctx context.Context, res *types.Response,
 	device userapi.Device, numRecentEventsPerRoom int,
+	nextBatch *types.StreamingToken,
 ) (*types.Response, error) {
 	toPos, joinedRoomIDs, err := d.getResponseWithPDUsForCompleteSync(
-		ctx, res, device.UserID, device, numRecentEventsPerRoom,
+		ctx, res, device.UserID, device, numRecentEventsPerRoom, nextBatch,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("d.getResponseWithPDUsForCompleteSync: %w", err)
@@ -921,6 +923,7 @@ func (d *Database) CompleteSync(
 		return nil, fmt.Errorf("d.addEDUDeltaToResponse: %w", err)
 	}
 
+	res.NextBatch = nextBatch.String()
 	return res, nil
 }
 

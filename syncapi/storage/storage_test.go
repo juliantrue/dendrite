@@ -169,7 +169,7 @@ func TestSyncResponse(t *testing.T) {
 					positions[len(positions)-2], types.StreamPosition(0), nil,
 				)
 				res := types.NewResponse()
-				return db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false)
+				return db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false, &latest)
 			},
 			WantTimeline: events[len(events)-1:],
 		},
@@ -183,7 +183,7 @@ func TestSyncResponse(t *testing.T) {
 				)
 				res := types.NewResponse()
 				// limit is set to 5
-				return db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false)
+				return db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false, &latest)
 			},
 			// want the last 5 events, NOT the last 10.
 			WantTimeline: events[len(events)-5:],
@@ -195,7 +195,7 @@ func TestSyncResponse(t *testing.T) {
 			DoSync: func() (*types.Response, error) {
 				res := types.NewResponse()
 				// limit set to 5
-				return db.CompleteSync(ctx, res, testUserDeviceA, 5)
+				return db.CompleteSync(ctx, res, testUserDeviceA, 5, &types.StreamingToken{})
 			},
 			// want the last 5 events
 			WantTimeline: events[len(events)-5:],
@@ -208,7 +208,7 @@ func TestSyncResponse(t *testing.T) {
 			Name: "CompleteSync",
 			DoSync: func() (*types.Response, error) {
 				res := types.NewResponse()
-				return db.CompleteSync(ctx, res, testUserDeviceA, len(events)+1)
+				return db.CompleteSync(ctx, res, testUserDeviceA, len(events)+1, &types.StreamingToken{})
 			},
 			WantTimeline: events,
 			// We want no state at all as that field in /sync is the delta between the token (beginning of time)
@@ -250,10 +250,12 @@ func TestGetEventsInRangeWithPrevBatch(t *testing.T) {
 	)
 
 	res := types.NewResponse()
-	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false)
+	nextBatch := &types.StreamingToken{}
+	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, from, latest, 5, false, nextBatch)
 	if err != nil {
 		t.Fatalf("failed to IncrementalSync with latest token")
 	}
+	res.NextBatch = nextBatch.String()
 	roomRes, ok := res.Rooms.Join[testRoomID]
 	if !ok {
 		t.Fatalf("IncrementalSync response missing room %s - response: %+v", testRoomID, res)
@@ -639,7 +641,7 @@ func TestInviteBehaviour(t *testing.T) {
 	}
 	// both invite events should appear in a new sync
 	beforeRetireRes := types.NewResponse()
-	beforeRetireRes, err = db.IncrementalSync(ctx, beforeRetireRes, testUserDeviceA, types.NewStreamToken(0, 0, nil), latest, 0, false)
+	beforeRetireRes, err = db.IncrementalSync(ctx, beforeRetireRes, testUserDeviceA, types.NewStreamToken(0, 0, nil), latest, 0, false, &latest)
 	if err != nil {
 		t.Fatalf("IncrementalSync failed: %s", err)
 	}
@@ -654,7 +656,7 @@ func TestInviteBehaviour(t *testing.T) {
 		t.Fatalf("failed to get SyncPosition: %s", err)
 	}
 	res := types.NewResponse()
-	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, types.NewStreamToken(0, 0, nil), latest, 0, false)
+	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, types.NewStreamToken(0, 0, nil), latest, 0, false, &latest)
 	if err != nil {
 		t.Fatalf("IncrementalSync failed: %s", err)
 	}
@@ -666,7 +668,7 @@ func TestInviteBehaviour(t *testing.T) {
 		t.Fatalf("NewStreamTokenFromString cannot parse next batch '%s' : %s", beforeRetireRes.NextBatch, err)
 	}
 	res = types.NewResponse()
-	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, beforeRetireTok, latest, 0, false)
+	res, err = db.IncrementalSync(ctx, res, testUserDeviceA, beforeRetireTok, latest, 0, false, &latest)
 	if err != nil {
 		t.Fatalf("IncrementalSync failed: %s", err)
 	}
