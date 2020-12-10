@@ -246,11 +246,9 @@ func (rp *RequestPool) OnIncomingKeyChangeRequest(req *http.Request, device *use
 // nolint:gocyclo
 func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.StreamingToken) (*types.Response, error) {
 	res := types.NewResponse()
-	var nextBatch types.StreamingToken
-	nextBatch = nextBatch.WithUpdates(latestPos)
+	nextBatch := latestPos
 	defer func() {
 		res.NextBatch = nextBatch.String()
-		fmt.Println("NEXT BATCH IS", res.NextBatch)
 	}()
 
 	// See if we have any new tasks to do for the send-to-device messaging.
