@@ -412,13 +412,6 @@ func NewResponse() *Response {
 	res.Rooms.Invite = make(map[string]InviteResponse)
 	res.Rooms.Leave = make(map[string]LeaveResponse)
 
-	// Also pre-intialise empty slices or else we'll insert 'null' instead of '[]' for the value.
-	// TODO: We really shouldn't have to do all this to coerce encoding/json to Do The Right Thing. We should
-	//       really be using our own Marshal/Unmarshal implementations otherwise this may prove to be a CPU bottleneck.
-	//       This also applies to NewJoinResponse, NewInviteResponse and NewLeaveResponse.
-	res.AccountData.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.Presence.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.ToDevice.Events = make([]gomatrixserverlib.SendToDeviceEvent, 0)
 	res.DeviceListsOTKCount = make(map[string]int)
 
 	return &res
@@ -456,10 +449,6 @@ type JoinResponse struct {
 // NewJoinResponse creates an empty response with initialised arrays.
 func NewJoinResponse() *JoinResponse {
 	res := JoinResponse{}
-	res.State.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.Timeline.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.Ephemeral.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.AccountData.Events = make([]gomatrixserverlib.ClientEvent, 0)
 	return &res
 }
 
@@ -508,8 +497,6 @@ type LeaveResponse struct {
 // NewLeaveResponse creates an empty response with initialised arrays.
 func NewLeaveResponse() *LeaveResponse {
 	res := LeaveResponse{}
-	res.State.Events = make([]gomatrixserverlib.ClientEvent, 0)
-	res.Timeline.Events = make([]gomatrixserverlib.ClientEvent, 0)
 	return &res
 }
 
