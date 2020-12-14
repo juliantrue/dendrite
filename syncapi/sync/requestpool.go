@@ -258,7 +258,7 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 	}
 
 	// TODO: handle ignored users
-	if req.since.PDUPosition() == 0 && req.since.EDUPosition() == 0 {
+	if req.since.IsEmpty() {
 		res, err = rp.db.CompleteSync(req.ctx, res, req.device, req.limit, &nextBatch)
 		if err != nil {
 			return res, fmt.Errorf("rp.db.CompleteSync: %w", err)
@@ -271,7 +271,7 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 	}
 
 	accountDataFilter := gomatrixserverlib.DefaultEventFilter() // TODO: use filter provided in req instead
-	res, err = rp.appendAccountData(res, req.device.UserID, req, latestPos.PDUPosition(), &accountDataFilter)
+	res, err = rp.appendAccountData(res, req.device.UserID, req, latestPos.PDUPosition, &accountDataFilter)
 	if err != nil {
 		return res, fmt.Errorf("rp.appendAccountData: %w", err)
 	}
@@ -298,7 +298,7 @@ func (rp *RequestPool) currentSyncForUser(req syncRequest, latestPos types.Strea
 		// Add the updates into the sync response.
 		for _, event := range events {
 			res.ToDevice.Events = append(res.ToDevice.Events, event.SendToDeviceEvent)
-			nextBatch.Positions[1]++
+			nextBatch.SendToDevicePosition++
 		}
 	}
 
@@ -326,7 +326,7 @@ func (rp *RequestPool) appendAccountData(
 	// data keys were set between two message. This isn't a huge issue since the
 	// duplicate data doesn't represent a huge quantity of data, but an optimisation
 	// here would be making sure each data is sent only once to the client.
-	if req.since == nil || (req.since.PDUPosition() == 0 && req.since.EDUPosition() == 0) {
+	if req.since.IsEmpty() {
 		// If this is the initial sync, we don't need to check if a data has
 		// already been sent. Instead, we send the whole batch.
 		dataReq := &userapi.QueryAccountDataRequest{
@@ -361,7 +361,7 @@ func (rp *RequestPool) appendAccountData(
 	}
 
 	r := types.Range{
-		From: req.since.PDUPosition(),
+		From: req.since.PDUPosition,
 		To:   currentPos,
 	}
 	// If both positions are the same, it means that the data was saved after the
@@ -381,7 +381,7 @@ func (rp *RequestPool) appendAccountData(
 
 	if len(dataTypes) == 0 {
 		// TODO: this fixes the sytest but is it the right thing to do?
-		if req.since == nil || req.since.PDUPosition() == 0 {
+		if req.since.IsEmpty() {
 			dataTypes[""] = []string{"m.push_rules"}
 		}
 	}
