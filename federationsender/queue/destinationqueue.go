@@ -295,10 +295,12 @@ func (oq *destinationQueue) backgroundSend() {
 			// time.
 			duration := time.Until(*until)
 			log.Warnf("Backing off %q for %s", oq.destination, duration)
+			oq.backingOff.Store(true)
 			select {
 			case <-time.After(duration):
 			case <-oq.interruptBackoff:
 			}
+			oq.backingOff.Store(false)
 		}
 
 		// Work out which PDUs/EDUs to include in the next transaction.
