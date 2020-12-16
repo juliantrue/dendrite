@@ -28,7 +28,6 @@ import (
 	"github.com/matrix-org/dendrite/roomserver/api"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
@@ -46,6 +45,37 @@ type OutgoingQueues struct {
 	queuesMutex sync.Mutex // protects the below
 	queues      map[gomatrixserverlib.ServerName]*destinationQueue
 }
+
+func init() {
+	prometheus.MustRegister(
+		destinationQueueTotal, destinationQueueRunning,
+		destinationQueueBackingOff,
+	)
+}
+
+var destinationQueueTotal = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Namespace: "dendrite",
+		Subsystem: "federationsender",
+		Name:      "destination_queues_total",
+	},
+)
+
+var destinationQueueRunning = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Namespace: "dendrite",
+		Subsystem: "federationsender",
+		Name:      "destination_queues_running",
+	},
+)
+
+var destinationQueueBackingOff = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Namespace: "dendrite",
+		Subsystem: "federationsender",
+		Name:      "destination_queues_backing_off",
+	},
+)
 
 // NewOutgoingQueues makes a new OutgoingQueues
 func NewOutgoingQueues(
@@ -67,45 +97,6 @@ func NewOutgoingQueues(
 		signing:    signing,
 		queues:     map[gomatrixserverlib.ServerName]*destinationQueue{},
 	}
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
-		Namespace: "dendrite",
-		Subsystem: "federationsender",
-		Name:      "destination_queues_total",
-	}, func() float64 {
-		queues.queuesMutex.Lock()
-		defer queues.queuesMutex.Unlock()
-		return float64(len(queues.queues))
-	})
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
-		Namespace: "dendrite",
-		Subsystem: "federationsender",
-		Name:      "destination_queues_running",
-	}, func() float64 {
-		queues.queuesMutex.Lock()
-		defer queues.queuesMutex.Unlock()
-		var count float64
-		for _, q := range queues.queues {
-			if q.running.Load() {
-				count++
-			}
-		}
-		return count
-	})
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
-		Namespace: "dendrite",
-		Subsystem: "federationsender",
-		Name:      "destination_queues_backing_off",
-	}, func() float64 {
-		queues.queuesMutex.Lock()
-		defer queues.queuesMutex.Unlock()
-		var count float64
-		for _, q := range queues.queues {
-			if q.running.Load() && q.backingOff.Load() {
-				count++
-			}
-		}
-		return count
-	})
 	// Look up which servers we have pending items for and then rehydrate those queues.
 	if !disabled {
 		time.AfterFunc(time.Second*5, func() {
@@ -157,6 +148,7 @@ func (oqs *OutgoingQueues) getQueue(destination gomatrixserverlib.ServerName) *d
 	defer oqs.queuesMutex.Unlock()
 	oq := oqs.queues[destination]
 	if oq == nil {
+		destinationQueueTotal.Inc()
 		oq = &destinationQueue{
 			db:               oqs.db,
 			rsAPI:            oqs.rsAPI,

@@ -242,6 +242,8 @@ func (oq *destinationQueue) backgroundSend() {
 	if !oq.running.CAS(false, true) {
 		return
 	}
+	destinationQueueRunning.Inc()
+	defer destinationQueueRunning.Dec()
 	defer oq.running.Store(false)
 
 	// Mark the queue as overflowed, so we will consult the database
@@ -296,10 +298,12 @@ func (oq *destinationQueue) backgroundSend() {
 			duration := time.Until(*until)
 			log.Warnf("Backing off %q for %s", oq.destination, duration)
 			oq.backingOff.Store(true)
+			destinationQueueBackingOff.Inc()
 			select {
 			case <-time.After(duration):
 			case <-oq.interruptBackoff:
 			}
+			destinationQueueBackingOff.Dec()
 			oq.backingOff.Store(false)
 		}
 

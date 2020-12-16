@@ -100,6 +100,12 @@ func (rp *RequestPool) updateLastSeen(req *http.Request, device *userapi.Device)
 	rp.lastseen.Store(device.UserID+device.ID, time.Now())
 }
 
+func init() {
+	prometheus.MustRegister(
+		activeSyncRequests, waitingSyncRequests,
+	)
+}
+
 var activeSyncRequests = prometheus.NewGauge(
 	prometheus.GaugeOpts{
 		Namespace: "dendrite",
