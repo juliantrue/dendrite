@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/matrix-org/dendrite/roomserver/storage"
@@ -477,6 +478,15 @@ var calculateStateConflictLength = prometheus.NewSummaryVec(
 		Help:      "The length of the conflicted room state.",
 	},
 	[]string{"algorithm", "outcome"},
+)
+
+var stateResolutionV2Duration = prometheus.NewSummaryVec(
+	prometheus.SummaryOpts{
+		Namespace: "dendrite",
+		Subsystem: "roomserver",
+		Name:      "state_resolution_v2_duration",
+	},
+	[]string{"conflicted", "unconflicted", "auth_chain", "auth_difference"},
 )
 
 type calculateStateMetrics struct {
@@ -937,12 +947,20 @@ func (v StateResolution) resolveConflictsV2(
 	}
 
 	// Resolve the conflicts.
+	algoV2Start := time.Now()
 	resolvedEvents := gomatrixserverlib.ResolveStateConflictsV2(
 		conflictedEvents,
 		nonConflictedEvents,
 		authEvents,
 		authDifference,
 	)
+	algoV2Duration := time.Since(algoV2Start)
+	stateResolutionV2Duration.WithLabelValues(
+		strconv.Itoa(len(conflictedEvents)),
+		strconv.Itoa(len(nonConflictedEvents)),
+		strconv.Itoa(len(authEvents)),
+		strconv.Itoa(len(authDifference)),
+	).Observe(float64(algoV2Duration.Milliseconds()))
 
 	// Map from the full events back to numeric state entries.
 	for _, resolvedEvent := range resolvedEvents {
