@@ -524,6 +524,7 @@ func init() {
 	prometheus.MustRegister(
 		calculateStateDurations, calculateStatePrevEventLength,
 		calculateStateFullStateLength, calculateStateConflictLength,
+		stateResolutionV2Duration,
 	)
 }
 
