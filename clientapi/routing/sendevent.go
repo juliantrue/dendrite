@@ -17,6 +17,7 @@ package routing
 import (
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/matrix-org/dendrite/clientapi/httputil"
 	"github.com/matrix-org/dendrite/clientapi/jsonerror"
@@ -27,6 +28,7 @@ import (
 	userapi "github.com/matrix-org/dendrite/userapi/api"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/util"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,6 +40,16 @@ type sendEventResponse struct {
 
 var (
 	userRoomSendMutexes sync.Map // (roomID+userID) -> mutex. mutexes to ensure correct ordering of sendEvents
+)
+
+var sendEventDuration = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Namespace: "dendrite",
+		Subsystem: "clientapi",
+		Name:      "sendevent_duration_millis",
+		Help:      "How long it takes to build and submit a new event from the client API to the roomserver",
+	},
+	[]string{"action"},
 )
 
 // SendEvent implements:
@@ -75,10 +87,12 @@ func SendEvent(
 	mutex.(*sync.Mutex).Lock()
 	defer mutex.(*sync.Mutex).Unlock()
 
+	startedGeneratingEvent := time.Now()
 	e, resErr := generateSendEvent(req, device, roomID, eventType, stateKey, cfg, rsAPI)
 	if resErr != nil {
 		return *resErr
 	}
+	timeToGenerateEvent := time.Since(startedGeneratingEvent)
 
 	var txnAndSessionID *api.TransactionID
 	if txnID != nil {
@@ -90,6 +104,7 @@ func SendEvent(
 
 	// pass the new event to the roomserver and receive the correct event ID
 	// event ID in case of duplicate transaction is discarded
+	startedSubmittingEvent := time.Now()
 	if err := api.SendEvents(
 		req.Context(), rsAPI,
 		api.KindNew,
@@ -102,6 +117,7 @@ func SendEvent(
 		util.GetLogger(req.Context()).WithError(err).Error("SendEvents failed")
 		return jsonerror.InternalServerError()
 	}
+	timeToSubmitEvent := time.Since(startedSubmittingEvent)
 	util.GetLogger(req.Context()).WithFields(logrus.Fields{
 		"event_id":     e.EventID(),
 		"room_id":      roomID,
@@ -116,6 +132,11 @@ func SendEvent(
 	if txnID != nil {
 		txnCache.AddTransaction(device.AccessToken, *txnID, &res)
 	}
+
+	// Take a note of how long it took to generate the event vs submit
+	// it to the roomserver.
+	sendEventDuration.With(prometheus.Labels{"action": "build"}).Observe(float64(timeToGenerateEvent.Milliseconds()))
+	sendEventDuration.With(prometheus.Labels{"action": "submit"}).Observe(float64(timeToSubmitEvent.Milliseconds()))
 
 	return res
 }
