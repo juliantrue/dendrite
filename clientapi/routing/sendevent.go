@@ -52,6 +52,11 @@ var sendEventDuration = prometheus.NewHistogramVec(
 		Subsystem: "clientapi",
 		Name:      "sendevent_duration_millis",
 		Help:      "How long it takes to build and submit a new event from the client API to the roomserver",
+		Buckets: []float64{ // milliseconds
+			1, 2, 5, 10, 25, 50, 100, 250, 500,
+			1000, 2000, 3000, 4000, 5000, 6000,
+			7000, 8000, 9000, 10000, 15000, 20000,
+		},
 	},
 	[]string{"action"},
 )
