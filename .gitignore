@@ -41,6 +41,9 @@ _testmain.go
 *.key
 *.crt
 
+# Certbot folders
+conf/
+
 # Default configuration file
 dendrite.yaml
 
