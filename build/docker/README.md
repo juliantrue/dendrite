@@ -19,7 +19,6 @@ not contain the Go toolchain etc.
 
 There are three sample `docker-compose` files:
 
-- `docker-compose.deps.yml` which runs the Postgres and Kafka prerequisites
 - `docker-compose.monolith.yml` which runs a monolith Dendrite deployment
 - `docker-compose.polylith.yml` which runs a polylith Dendrite deployment
 
@@ -31,16 +30,14 @@ runtime config should come from. The mounted folder must contain:
 - `dendrite.yaml` configuration file (based on the sample `dendrite-config.yaml`
    in the `docker/config` folder in the [Dendrite repository](https://github.com/matrix-org/dendrite)
 - `matrix_key.pem` server key, as generated using `cmd/generate-keys`
-- `server.crt` certificate file
-- `server.key` private key file for the above certificate
 
 To generate keys:
 
 ```
 go run github.com/matrix-org/dendrite/cmd/generate-keys \
-  --private-key=matrix_key.pem \
-  --tls-cert=server.crt \
-  --tls-key=server.key
+  --private-key=./config/matrix_key.pem 
+
+openssl dhparam -out ./config/dhparam.pem 2048
 ```
 
 ## Starting Dendrite as a monolith deployment
@@ -51,14 +48,6 @@ make the following changes to the configuration:
 
 - Enable Naffka: `use_naffka: true`
 
-Once in place, start the PostgreSQL dependency:
-
-```
-docker-compose -f docker-compose.deps.yml up postgres
-```
-
-Wait a few seconds for PostgreSQL to finish starting up, and then start a monolith:
-
 ```
 docker-compose -f docker-compose.monolith.yml up
 ```
@@ -67,14 +56,6 @@ docker-compose -f docker-compose.monolith.yml up
 
 Create your config based on the `dendrite.yaml` configuration file in the `docker/config`
 folder in the [Dendrite repository](https://github.com/matrix-org/dendrite).
-
-Once in place, start all the dependencies:
-
-```
-docker-compose -f docker-compose.deps.yml up
-```
-
-Wait a few seconds for PostgreSQL and Kafka to finish starting up, and then start a polylith:
 
 ```
 docker-compose -f docker-compose.polylith.yml up

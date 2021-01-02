@@ -1,11 +1,66 @@
 version: "3.4"
 services:
+  postgres:
+    hostname: postgres
+    image: postgres:9.6
+    restart: always
+    volumes:
+      - ./postgres/create_db.sh:/docker-entrypoint-initdb.d/20-create_db.sh
+    # To persist your PostgreSQL databases outside of the Docker image, to 
+    # prevent data loss, you will need to add something like this:
+    #  - ./path/to/persistent/storage:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: itsasecret
+      POSTGRES_USER: dendrite
+    healthcheck:
+      test: pg_isready -q -d dendrite_naffka -U dendrite || exit -1
+      timeout: 10s
+      interval: 10s
+      retries: 3
+    networks:
+      - internal
+
+  # Zookeeper is only needed for polylith mode!
+  zookeeper:
+    hostname: zookeeper
+    image: zookeeper
+    healthcheck:
+      test: nc -z localhost 2181 || exit -1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal
+
+  # Kafka is only needed for polylith mode!
+  kafka:
+    container_name: dendrite_kafka
+    hostname: kafka
+    image: wurstmeister/kafka
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: "kafka"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - internal
+
   client_api:
     hostname: client_api
     image: matrixdotorg/dendrite-polylith:latest
     command: clientapi
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -14,7 +69,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: mediaapi
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -23,7 +83,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: syncapi
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -32,7 +97,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: roomserver
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -41,7 +111,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: eduserver
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -50,7 +125,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: federationapi
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -59,7 +139,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: federationsender
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
       
@@ -68,7 +153,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: keyserver
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
         - internal
 
@@ -77,7 +167,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: signingkeyserver
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
 
@@ -86,7 +181,12 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: userapi
     volumes:
-        - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
         - internal
 
@@ -95,12 +195,33 @@ services:
     image: matrixdotorg/dendrite-polylith:latest
     command: appservice
     volumes:
-      - ./config:/etc/dendrite
+      - ./config/dendrite-config.yaml:/etc/dendrite/dendrite.yaml
+      - ./config/matrix_key.pem:/etc/dendrite/matrix_key.pem
+      - ./config/server.crt:/etc/dendrite/server.crt
+      - ./config/server.key:/etc/dendrite/server.key
+    depends_on: 
+      - kafka
     networks:
       - internal
-    depends_on:
-      - room_server
-      - user_api
+
+  nginx:
+    hostname: nginx
+    image: nginx:1.19
+    depends_on: 
+      - appservice_api
+      - federation_api
+      - media_api
+      - client_api
+      - sync_api
+    ports:
+      - 443:443
+    volumes:
+      - ./config/nginx-polylith.conf:/etc/nginx/nginx.conf
+      - ./config/dhparam.pem:/etc/ssl/dhparam.pem
+      - ./config/server.crt:/etc/ssl/server.crt
+      - ./config/server.key:/etc/ssl/server.key
+    networks:
+      - internal
 
 networks:
   internal:

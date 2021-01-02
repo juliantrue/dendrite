@@ -1,0 +1,22 @@
+version: "3.4"
+
+services:
+  nginx:
+    hostname: nginx
+    image: nginx:1.19
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./config/nginx-cert.conf:/etc/nginx/nginx.conf
+      - ./config/data:/usr/share/nginx/html/letsencrypt
+
+  certbot:
+    image: certbot/certbot:latest
+    command: certonly --webroot --webroot-path=/usr/share/nginx/html/letsencrypt --email julian.allan.true@gmail.com --agree-tos --no-eff-email -d basilica.duckdns.org
+    depends_on: 
+      - nginx
+    volumes:
+      - ./config/conf/:/etc/letsencrypt
+      - ./config/logs/:/var/log/letsencrypt
+      - ./config/data:/usr/share/nginx/html/letsencrypt
